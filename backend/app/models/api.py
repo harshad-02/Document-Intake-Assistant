@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.state import FieldStatus
+from app.models.document import Status
 
 
 # ── Requests ──────────────────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ class EditFieldRequest(BaseModel):
 class FieldSnapshot(BaseModel):
     """A single field's current state for the API consumer."""
     value: Any = None
-    status: FieldStatus = FieldStatus.UNKNOWN
+    status: Status = "unknown"
 
 
 class StateSnapshot(BaseModel):

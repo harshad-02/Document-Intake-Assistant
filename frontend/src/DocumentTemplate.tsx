@@ -21,8 +21,9 @@ export function DocumentTemplate({ state }: DocumentTemplateProps) {
   const homeAddress = getVal('home_address') as string;
   
   const coversWorldwide = getVal('covers_worldwide_assets') as boolean | string;
-  const isWorldwide = coversWorldwide === true;
-  const isSpecific = coversWorldwide === false;
+  const isWorldwide = coversWorldwide === true || coversWorldwide === 'worldwide';
+  const isSpecific = coversWorldwide !== '' && !isWorldwide && coversWorldwide !== null && coversWorldwide !== undefined;
+  const specificAssetsText = (isSpecific && typeof coversWorldwide === 'string' && coversWorldwide !== 'specific') ? coversWorldwide : '';
 
   const hasChildren = getVal('has_children') as boolean | string;
   const isYesChildren = hasChildren === true;
@@ -79,7 +80,7 @@ export function DocumentTemplate({ state }: DocumentTemplateProps) {
           <div className="pdf-checkbox-row">
             <div className="pdf-checkbox">{isSpecific ? '✔' : ''}</div>
             <span>Specific assets only (please specify): </span>
-            <span className="pdf-value inline-value"></span>
+            <span className="pdf-value inline-value">{specificAssetsText}</span>
           </div>
         </div>
       </div>

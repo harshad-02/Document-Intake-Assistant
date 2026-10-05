@@ -54,22 +54,22 @@ class GeminiLLM(LLMInterface):
                 parts=[types.Part(text=msg["content"])]
             ))
 
-        # Build user message with context
-        from app.llm.prompts import build_user_context
-        context = build_user_context(request.state_json, request.next_field)
-        full_user_message = f"{context}\n\nUser message: {request.user_message}"
+        full_user_message = request.user_message
 
         contents.append(types.Content(
             role="user",
             parts=[types.Part(text=full_user_message)]
         ))
 
-        config = types.GenerateContentConfig(
-            system_instruction=request.system_prompt,
-            temperature=0.2,
-            max_output_tokens=settings.LLM_MAX_OUTPUT_TOKENS,
-            response_mime_type="application/json",
-        )
+        config_kwargs = {
+            "system_instruction": request.system_prompt,
+            "temperature": 0.2,
+            "max_output_tokens": settings.LLM_MAX_OUTPUT_TOKENS,
+        }
+        if request.require_json:
+            config_kwargs["response_mime_type"] = "application/json"
+            
+        config = types.GenerateContentConfig(**config_kwargs)
 
         try:
             response = await asyncio.to_thread(

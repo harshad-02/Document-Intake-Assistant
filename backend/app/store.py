@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import Optional
 
-from app.models.state import Session
+from app.models.conversation import Session
 
 
 class SessionStore:

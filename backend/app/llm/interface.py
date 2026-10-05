@@ -34,6 +34,7 @@ class LLMRequest:
     recent_messages: list[dict[str, str]]  # [{"role": ..., "content": ...}]
     user_message: str
     next_field: str | None
+    require_json: bool = True
 
 
 class LLMInterface(ABC):

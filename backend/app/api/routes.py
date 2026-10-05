@@ -18,17 +18,15 @@ from app.models.api import (
     MessageResponse,
     SendMessageRequest,
     SessionResponse,
-    FieldSnapshot,
-    StateSnapshot,
 )
-from app.models.state import Message
+from app.models.conversation import Message
 from app.services.conversation import (
     SessionNotFoundError,
     handle_direct_edit,
     handle_message,
     _state_to_snapshot,
 )
-from app.services.next_question import compute_next_question, FIELD_ORDER
+from app.services.state_machine import get_next_step
 from app.store import store
 
 logger = logging.getLogger(__name__)
@@ -69,12 +67,14 @@ async def create_session():
     session.messages.append(Message(role="assistant", content=OPENING_MESSAGE))
     store.save(session)
 
-    nq = compute_next_question(session.state)
+    next_step = get_next_step(session.state)
+    session.state.current_step = next_step
+    
     return SessionResponse(
         id=session.id,
         state=_state_to_snapshot(session.state),
-        document=generate_document(session.state),
-        missing_fields=nq.missing_fields,
+        document=generate_document(session.state.document),
+        missing_fields=[next_step] if next_step != "complete" else [],
         messages=[MessageInfo(role="assistant", content=OPENING_MESSAGE)],
     )
 
@@ -91,12 +91,12 @@ async def get_session(session_id: str):
             ).model_dump(),
         )
 
-    nq = compute_next_question(session.state)
+    next_step = get_next_step(session.state)
     return SessionResponse(
         id=session.id,
         state=_state_to_snapshot(session.state),
-        document=generate_document(session.state),
-        missing_fields=nq.missing_fields,
+        document=generate_document(session.state.document),
+        missing_fields=[next_step] if next_step != "complete" else [],
         messages=[MessageInfo(role=m.role, content=m.content) for m in session.messages],
     )
 
@@ -166,17 +166,17 @@ async def reset_session(session_id: str):
             ).model_dump(),
         )
 
-    from app.models.state import PersonalWishes
-    session.state = PersonalWishes()
+    from app.models.conversation import ConversationState
+    session.state = ConversationState()
     session.messages = [Message(role="assistant", content=OPENING_MESSAGE)]
     session.llm_call_count = 0
     store.save(session)
 
-    nq = compute_next_question(session.state)
+    next_step = get_next_step(session.state)
     return SessionResponse(
         id=session.id,
         state=_state_to_snapshot(session.state),
-        document=generate_document(session.state),
-        missing_fields=nq.missing_fields,
+        document=generate_document(session.state.document),
+        missing_fields=[next_step] if next_step != "complete" else [],
         messages=[MessageInfo(role="assistant", content=OPENING_MESSAGE)],
     )
