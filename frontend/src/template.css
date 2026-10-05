@@ -1,0 +1,196 @@
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap');
+
+.pdf-template-wrapper {
+  font-family: 'Times New Roman', Times, serif;
+  color: #000;
+  background-color: #fff;
+  padding: 40px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.pdf-header {
+  text-align: center;
+  margin-bottom: 24px;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.pdf-header h1 {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 36px;
+  font-weight: 400;
+  margin: 0 0 10px 0;
+  letter-spacing: 1px;
+}
+
+.pdf-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 10px 0;
+}
+
+.pdf-divider::before,
+.pdf-divider::after {
+  content: '';
+  display: inline-block;
+  width: 150px;
+  height: 1px;
+  background-color: #666;
+}
+
+.pdf-leaf-icon {
+  margin: 0 10px;
+  font-size: 18px;
+  color: #555;
+  filter: grayscale(100%);
+}
+
+.pdf-header h2 {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: #333;
+  margin: 10px 0 20px 0;
+}
+
+.pdf-section {
+  border: 1px solid #aaa;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.pdf-section-header {
+  background-color: #e5e7eb;
+  padding: 8px 16px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: #111;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #aaa;
+}
+
+.pdf-icon {
+  font-size: 16px;
+  margin-right: 8px;
+  filter: grayscale(100%);
+}
+
+.pdf-section-body {
+  padding: 16px;
+}
+
+.pdf-row {
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 10px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.pdf-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  width: 120px;
+  flex-shrink: 0;
+  color: #111;
+}
+
+.pdf-value {
+  flex: 1;
+  border-bottom: 1px solid #000;
+  min-height: 20px;
+  font-size: 15px;
+  padding-left: 4px;
+}
+
+.pdf-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #111;
+}
+
+.pdf-checkbox-row {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}
+
+.pdf-checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1px solid #000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  font-size: 12px;
+}
+
+.pdf-checkbox-group {
+  display: flex;
+  align-items: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}
+
+.pdf-label-inline {
+  margin-right: 20px;
+}
+
+.pdf-checkbox-group span {
+  margin-left: 6px;
+}
+
+.inline-value {
+  margin-left: 10px;
+}
+
+.pdf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.pdf-table th,
+.pdf-table td {
+  border: 1px solid #aaa;
+  padding: 6px;
+}
+
+.pdf-table th {
+  background-color: #e5e7eb;
+  font-weight: 600;
+  text-align: left;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.pdf-wishes-box {
+  margin-top: 8px;
+  min-height: 80px;
+}
+
+.pdf-wishes-text {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.pdf-line {
+  border-bottom: 1px solid #000;
+  height: 24px;
+  width: 100%;
+}
