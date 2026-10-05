@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Any
 
-from app.models.document import DocumentState, FieldValue, ChildrenState, ExecutorState
+from app.models.document import DocumentState, FieldValue, ChildrenState, ExecutorState, AssetsState, SpecificGiftsState, AdditionalWishesState
 
 def _render_value(field: FieldValue, fallback: str = "[Not yet provided]") -> str:
     if field.status in ("missing", "unknown") or field.value is None:
@@ -53,6 +53,37 @@ def _render_executor(executor: ExecutorState) -> str:
         return f"{res} ⚠️ *[To be confirmed]*"
     return res
 
+def _render_assets(assets: AssetsState) -> str:
+    if assets.status in ("missing", "unknown") or not assets.items:
+        return ""
+    res = "- **Asset Details:**\n"
+    for item in assets.items:
+        res += f"  - {item}\n"
+    return res
+
+def _render_specific_gifts(gifts: SpecificGiftsState) -> str:
+    if gifts.status in ("missing", "unknown"):
+        return "[Not yet provided]"
+    if gifts.status == "none" or not gifts.items:
+        return "None"
+    
+    parts = [f"{g.item} -> {g.recipient}" for g in gifts.items]
+    res = ", ".join(parts)
+    if gifts.status == "unconfirmed":
+        return f"{res} ⚠️ *[To be confirmed]*"
+    return res
+
+def _render_additional_wishes(wishes: AdditionalWishesState) -> str:
+    if wishes.status in ("missing", "unknown"):
+        return "[Not yet provided]"
+    if wishes.status == "none" or not wishes.text:
+        return "None"
+    
+    res = wishes.text
+    if wishes.status == "unconfirmed":
+        return f"{res} ⚠️ *[To be confirmed]*"
+    return res
+
 def generate_document(state: DocumentState) -> str:
     """Generate the Personal Wishes Document as markdown."""
     lines: list[str] = []
@@ -75,14 +106,21 @@ def generate_document(state: DocumentState) -> str:
     lines.append("## Scope of Assets")
     lines.append("")
     ca = state.covers_worldwide_assets
-    if ca.status in ("missing", "unknown") or not ca.value:
+    if ca.status in ("missing", "unknown") or ca.covers_worldwide is None:
         lines.append("- **Assets Covered:** [Not yet provided]")
-    elif ca.value == "worldwide":
+    elif ca.covers_worldwide is True:
         marker = " ⚠️ *[To be confirmed]*" if ca.status == "unconfirmed" else ""
         lines.append(f"- **Assets Covered:** Worldwide assets (properties, bank accounts, investments, etc.){marker}")
     else:
         marker = " ⚠️ *[To be confirmed]*" if ca.status == "unconfirmed" else ""
-        lines.append(f"- **Assets Covered:** Specific assets only: {ca.value}{marker}")
+        parts = []
+        if ca.region:
+            parts.append(ca.region)
+        if state.assets.items:
+            parts.append(", ".join(state.assets.items))
+        val = "; ".join(parts) if parts else "Specific region only"
+        lines.append(f"- **Assets Covered:** Specific assets only: {val}{marker}")
+    
     lines.append("")
 
     # Section 3: Family and Children
@@ -100,13 +138,13 @@ def generate_document(state: DocumentState) -> str:
     # Section 5: Specific Gifts
     lines.append("## Specific Gifts")
     lines.append("")
-    lines.append(f"- **Gifts:** {_render_value(state.specific_gifts)}")
+    lines.append(f"- **Gifts:** {_render_specific_gifts(state.specific_gifts)}")
     lines.append("")
 
     # Section 6: Additional Wishes
     lines.append("## Additional Wishes")
     lines.append("")
-    lines.append(f"- **Additional Wishes:** {_render_value(state.additional_wishes)}")
+    lines.append(f"- **Additional Wishes:** {_render_additional_wishes(state.additional_wishes)}")
     lines.append("")
 
     return "\n".join(lines)

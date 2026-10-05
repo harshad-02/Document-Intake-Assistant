@@ -37,6 +37,7 @@ class StateSnapshot(BaseModel):
     full_name: FieldSnapshot = Field(default_factory=FieldSnapshot)
     home_address: FieldSnapshot = Field(default_factory=FieldSnapshot)
     covers_worldwide_assets: FieldSnapshot = Field(default_factory=FieldSnapshot)
+    assets: FieldSnapshot = Field(default_factory=FieldSnapshot)
     has_children: FieldSnapshot = Field(default_factory=FieldSnapshot)
     children: FieldSnapshot = Field(default_factory=FieldSnapshot)
     executor_name: FieldSnapshot = Field(default_factory=FieldSnapshot)

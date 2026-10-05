@@ -23,16 +23,35 @@ class SessionNotFoundError(Exception):
 def _state_to_snapshot(state) -> StateSnapshot:
     """Convert internal DocumentState to API snapshot for the frontend."""
     doc = state.document
+    ww = doc.covers_worldwide_assets
+    ww_val = None
+    if ww.covers_worldwide is not None:
+        specific_text = ""
+        if ww.covers_worldwide is False:
+            parts = []
+            if ww.region:
+                parts.append(ww.region)
+            if doc.assets.items:
+                parts.append(", ".join(doc.assets.items))
+            specific_text = "; ".join(parts)
+            
+        ww_val = {
+            "worldwide": ww.covers_worldwide is True,
+            "specific": ww.covers_worldwide is False,
+            "region": specific_text
+        }
+
     return StateSnapshot(
         full_name=FieldSnapshot(value=doc.full_name.value, status=doc.full_name.status.name if hasattr(doc.full_name.status, 'name') else doc.full_name.status),
         home_address=FieldSnapshot(value=doc.home_address.value, status=doc.home_address.status.name if hasattr(doc.home_address.status, 'name') else doc.home_address.status),
-        covers_worldwide_assets=FieldSnapshot(value=doc.covers_worldwide_assets.value, status=doc.covers_worldwide_assets.status.name if hasattr(doc.covers_worldwide_assets.status, 'name') else doc.covers_worldwide_assets.status),
+        covers_worldwide_assets=FieldSnapshot(value=ww_val, status=ww.status.name if hasattr(ww.status, 'name') else ww.status),
+        assets=FieldSnapshot(value=doc.assets.items if doc.assets.items else None, status=doc.assets.status.name if hasattr(doc.assets.status, 'name') else doc.assets.status),
         has_children=FieldSnapshot(value=doc.children.has_children, status=doc.children.status.name if hasattr(doc.children.status, 'name') else doc.children.status),
         children=FieldSnapshot(value=doc.children.names, status=doc.children.status.name if hasattr(doc.children.status, 'name') else doc.children.status),
-        executor_name=FieldSnapshot(value=", ".join(doc.executor.names) if doc.executor.names else None, status=doc.executor.status.name if hasattr(doc.executor.status, 'name') else doc.executor.status),
+        executor_name=FieldSnapshot(value=" and ".join(doc.executor.names) if doc.executor.names else None, status=doc.executor.status.name if hasattr(doc.executor.status, 'name') else doc.executor.status),
         executor_relationship=FieldSnapshot(value=doc.executor.relationship, status=doc.executor.status.name if hasattr(doc.executor.status, 'name') else doc.executor.status),
-        specific_gifts=FieldSnapshot(value=[g.strip() for g in doc.specific_gifts.value.split(',')] if doc.specific_gifts.value else [], status=doc.specific_gifts.status.name if hasattr(doc.specific_gifts.status, 'name') else doc.specific_gifts.status),
-        additional_wishes=FieldSnapshot(value=doc.additional_wishes.value, status=doc.additional_wishes.status.name if hasattr(doc.additional_wishes.status, 'name') else doc.additional_wishes.status)
+        specific_gifts=FieldSnapshot(value=[f"{g.item} -> {g.recipient}" for g in doc.specific_gifts.items] if doc.specific_gifts.items else [], status=doc.specific_gifts.status.name if hasattr(doc.specific_gifts.status, 'name') else doc.specific_gifts.status),
+        additional_wishes=FieldSnapshot(value=doc.additional_wishes.text, status=doc.additional_wishes.status.name if hasattr(doc.additional_wishes.status, 'name') else doc.additional_wishes.status)
     )
 
 def _build_recent_messages(session) -> list[dict[str, str]]:
@@ -57,16 +76,37 @@ async def handle_message(session_id: str, user_message: str) -> MessageResponse:
             # Unchanged state
         else:
             # 2. State update (deterministic)
+            state_before = session.state.model_copy(deep=True)
             session.state, merge_warnings = update_state(session.state, patch)
             warnings.extend(merge_warnings)
+            
+            print("========== STATE DEBUG ==========")
+            print("SESSION ID:", session_id)
+            print("USER MESSAGE:", user_message)
+            print("STATE BEFORE:", state_before.model_dump_json(indent=2))
+            print("CURRENT STEP BEFORE:", state_before.current_step)
+            print("LLM EXTRACTION:", patch.model_dump_json(indent=2))
+            print("STATE AFTER UPDATE:", session.state.model_dump_json(indent=2))
 
         # 3. State machine gets next step
         next_step = get_next_step(session.state)
+        
+        print("NEXT STEP:", next_step)
+        print("DOCUMENT STATE:", session.state.document.model_dump_json(indent=2))
+        print("================================")
+        
         session.state.current_step = next_step
         
         # 4. Response Generator LLM #2
-        extracted_dict = patch.updates.model_dump(exclude_unset=True) if patch else {}
-        reply = await generate_response(session.state, next_step, warnings, _build_recent_messages(session), extracted_dict)
+        if patch and patch.interpretation.status != "unclear" and not patch.interpretation.needs_clarification:
+            extracted_dict = patch.updates.model_dump(exclude_unset=True)
+        else:
+            extracted_dict = {}
+            
+        if next_step == "complete":
+            reply = "Your final Personal Wishes document has been successfully generated. Thank you!"
+        else:
+            reply = await generate_response(session.state, next_step, warnings, _build_recent_messages(session), extracted_dict)
         
         session.messages.append(Message(role="user", content=user_message))
         session.messages.append(Message(role="assistant", content=reply))

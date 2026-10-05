@@ -15,7 +15,9 @@ Then, output a 1-2 sentence response that:
 1. Briefly acknowledge what was just recorded using ONLY the properties provided in JUST_EXTRACTED. Do NOT echo or parrot the user's raw message (e.g., if JUST_EXTRACTED contains full_name="John", acknowledge "John", do NOT say "John from Paris" even if the user said it).
 2. Asks exactly ONE question corresponding to the NEXT_STEP.
 3. If the user's previous answer was unclear, ask a clarifying version of the SAME question.
-4. DO NOT invent state. DO NOT ask multiple questions.
+4. If NEXT_STEP is 'generation_confirmation', ask the user if they are ready to generate the document now that all information is gathered.
+5. If NEXT_STEP is 'complete', simply state that the document has been successfully generated or updated. DO NOT ask any questions.
+6. DO NOT invent state. DO NOT ask multiple questions.
 
 Return plain text only. No JSON, no markdown.
 """

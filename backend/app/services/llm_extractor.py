@@ -21,20 +21,26 @@ RULES:
 1. If the user's message provides information for multiple fields (e.g., 'Harshad from Pune' or 'My name is Harshad and I live in Pune'), extract all identified fields separately (e.g., full_name='Harshad', home_address='Pune'). Short contextual answers ("yes", "no", "2") apply ONLY to the CURRENT_STEP.
 2. The current application state is authoritative. Use previously confirmed entities when the user refers to them using pronouns or phrases such as 'both', 'both them', 'my sons', 'my children', 'the two of them', 'him', or 'her'.
 3. The current step has priority when interpreting short contextual answers. Do not ask for information that can be resolved from the existing state.
-4. If the user's answer doesn't fit the current question (e.g. they say "Car" but the question is "who is your executor?"), set `interpretation.status = "unclear"`, `interpretation.needs_clarification = true`, and leave updates empty.
-5. If the user explicitly corrects a previous answer (e.g., "actually my address is X"), update that specific field.
-6. If the current step is "executor" and the user says "no" or "none", set `executor_status` to "not_decided" or "declined". Do NOT touch `has_children` or any other field.
-7. If the current step is "specific_gifts" or "additional_wishes" and the user says "no", "none", or similar, leave the field empty in updates, but set `interpretation.status = "clear"`.
-8. RETURN ONLY VALID JSON. Return only a structured patch. Do not invent information. No prose, no markdown fences.
+4. If the user's answer doesn't fit the current question, set `interpretation.status = "unclear"`, `interpretation.needs_clarification = true`, and leave updates empty.
+5. If the user explicitly corrects a previous answer (e.g., "actually my address is X", "remove the car gift", "change the gift to 500 million"), set `intent="correction"`, `intent="removal"`, or `intent="addition"` and output the new values.
+6. If the current step is "executor" and the user says "no" or "none", set `executor_status` to "not_decided" or "declined".
+7. For the "worldwide_assets" step: If the user answers affirmatively ("yes", "worldwide", "all my assets"), set `covers_worldwide_assets=true`. If they answer negatively ("no", "only India", "just my house in US"), set `covers_worldwide_assets=false` and capture any specified region in `asset_region`. If the user specifies asset items ("one car and two houses"), put them in `asset_items`. IMPORTANT: A single message can contain BOTH the coverage answer and specific items. For example, "no I have only one car and house" MUST result in `covers_worldwide_assets=false` AND `asset_items=["one car", "one house"]` AND `target_fields` must include BOTH `["covers_worldwide_assets", "assets"]`.
+8. Parse specific gifts into the `specific_gifts` list, separating the `item` and the `recipient`. For example, "1 car to Jonn" -> item="1 car", recipient="Jonn".
+9. Any free-form extra wishes (e.g., "I want to give both of them 1 billion") that don't fit structured gifts should go to `additional_wishes`.
+10. Identify exactly which fields the user is talking about in `target_fields` (e.g., `["children"]`, `["assets"]`, `["executor"]`, `["specific_gifts"]`, `["full_name"]`). The extracted `updates` must ONLY contain data for fields listed in `target_fields`.
+11. Do NOT blindly map "yes" or "no" to the current step if the user's answer is clearly about something else. For example, if the current step is `has_children` and the user says "No assets", the user is talking about `assets`! You MUST output `"target_fields": ["assets"]`, `asset_items=[]`, and LEAVE `has_children` NULL.
+12. RETURN ONLY VALID JSON. Return only a structured patch. Do not invent information. No prose, no markdown fences.
 
 JSON SCHEMA:
 {
+  "intent": "answer" | "correction" | "addition" | "removal" | "confirmation" | "generation_confirmation",
+  "target_fields": ["string"],
   "updates": {
     "full_name": null, "home_address": null,
-    "covers_worldwide_assets": null, // Use "worldwide" if they want all assets, or the specific assets string if they specify them
-    "has_children": null, "expected_children_count": null, "children_names": [],
-    "executor_names": [], "executor_relationship": null, "executor_status": null,
-    "specific_gifts": [], "additional_wishes": null
+    "covers_worldwide_assets": null, "asset_region": null, "asset_items": null,
+    "has_children": null, "expected_children_count": null, "children_names": null,
+    "executor_names": null, "executor_relationship": null, "executor_status": null,
+    "specific_gifts": [{"item": "string", "recipient": "string"}], "additional_wishes": null
   },
   "interpretation": {
     "status": "clear" | "unclear",

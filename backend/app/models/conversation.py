@@ -15,6 +15,7 @@ class Message(BaseModel):
 
 class ConversationState(BaseModel):
     current_step: str = "full_name"
+    generation_confirmed: bool = False
     document: DocumentState = Field(default_factory=DocumentState)
 
 class Session(BaseModel):

@@ -173,7 +173,7 @@ input, textarea {
 
 .layout-group {
   display: flex;
-  gap: 2rem;
+  gap: 4.5rem;
   width: 100%;
 }
 
@@ -192,7 +192,7 @@ input, textarea {
 }
 
 .chat-group-panel {
-  height: 110vh;
+  height: calc(133.333vh - 150px);
 }
 
 .panel-header {
@@ -290,8 +290,10 @@ input, textarea {
 }
 
 .chat-input-area {
-  padding: 0.5rem 1rem;
-  border-top: 1px solid var(--border-color);
+  padding: 0.75rem 1rem;
+  margin: 0 0.75rem 1.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
   background-color: var(--bg-secondary);
   flex-shrink: 0;
 }
@@ -317,10 +319,10 @@ input, textarea {
   background: transparent;
   border: none;
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   resize: none;
-  max-height: 100px;
-  padding: 4px 0;
+  max-height: 60px;
+  padding: 2px 0;
 }
 
 .chat-input::placeholder {

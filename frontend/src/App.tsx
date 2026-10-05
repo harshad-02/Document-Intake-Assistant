@@ -63,6 +63,14 @@ function formatFieldValue(field: FieldSnapshot): string {
     if (field.value.length === 0) return 'None specified';
     return field.value.join(', ');
   }
+  if (typeof field.value === 'object' && field.value !== null) {
+    if ('worldwide' in (field.value as any)) {
+      const w = field.value as any;
+      if (w.worldwide) return 'Worldwide';
+      if (w.specific) return w.region ? `Specific: ${w.region}` : 'Specific region only';
+      return '—';
+    }
+  }
   return String(field.value);
 }
 
@@ -340,7 +348,13 @@ function App() {
     const element = window.document.querySelector('.document-content');
     if (!element) return;
 
-    // Add a temporary class to ensure it's not cut off by scrollbars during print
+    const htmlEl = window.document.documentElement;
+
+    // Temporarily remove zoom so html2canvas calculates text metrics correctly
+    const originalZoom = htmlEl.style.zoom;
+    htmlEl.style.zoom = '1';
+
+    // Ensure the element is not clipped by scroll containers
     const originalMaxHeight = (element as HTMLElement).style.maxHeight;
     const originalOverflow = (element as HTMLElement).style.overflow;
     (element as HTMLElement).style.maxHeight = 'none';
@@ -350,7 +364,7 @@ function App() {
       margin: 0.5,
       filename: 'personal-wishes-document.pdf',
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
       pagebreak: { mode: ['css', 'legacy'] }
     };
@@ -359,6 +373,8 @@ function App() {
       // Restore original styles
       (element as HTMLElement).style.maxHeight = originalMaxHeight;
       (element as HTMLElement).style.overflow = originalOverflow;
+      // Restore zoom
+      htmlEl.style.zoom = originalZoom;
     });
   }
 

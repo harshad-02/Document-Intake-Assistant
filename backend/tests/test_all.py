@@ -35,6 +35,7 @@ class TestStateMachine:
         state.document.full_name.status = "confirmed"
         state.document.home_address.status = "confirmed"
         state.document.covers_worldwide_assets.status = "confirmed"
+        state.document.covers_worldwide_assets.covers_worldwide = True
         assert get_next_step(state) == "has_children"
 
     def test_has_children_true_asks_count(self):
@@ -42,6 +43,7 @@ class TestStateMachine:
         state.document.full_name.status = "confirmed"
         state.document.home_address.status = "confirmed"
         state.document.covers_worldwide_assets.status = "confirmed"
+        state.document.covers_worldwide_assets.covers_worldwide = True
         state.document.children.status = "confirmed"
         state.document.children.has_children = True
         assert get_next_step(state) == "expected_children_count"
@@ -51,6 +53,7 @@ class TestStateMachine:
         state.document.full_name.status = "confirmed"
         state.document.home_address.status = "confirmed"
         state.document.covers_worldwide_assets.status = "confirmed"
+        state.document.covers_worldwide_assets.covers_worldwide = True
         state.document.children.status = "confirmed"
         state.document.children.has_children = True
         state.document.children.expected_count = 2
@@ -61,6 +64,7 @@ class TestStateMachine:
         state.document.full_name.status = "confirmed"
         state.document.home_address.status = "confirmed"
         state.document.covers_worldwide_assets.status = "confirmed"
+        state.document.covers_worldwide_assets.covers_worldwide = True
         state.document.children.status = "confirmed"
         state.document.children.has_children = True
         state.document.children.expected_count = 2
@@ -72,7 +76,8 @@ class TestStateMachine:
         state.document.full_name.status = "confirmed"
         state.document.home_address.status = "confirmed"
         state.document.covers_worldwide_assets.status = "confirmed"
-        state.document.children.status = "not_applicable"
+        state.document.covers_worldwide_assets.covers_worldwide = True
+        state.document.children.status = "none"
         state.document.children.has_children = False
         assert get_next_step(state) == "executor"
 
@@ -81,7 +86,8 @@ class TestStateMachine:
         state.document.full_name.status = "confirmed"
         state.document.home_address.status = "confirmed"
         state.document.covers_worldwide_assets.status = "confirmed"
-        state.document.children.status = "not_applicable"
+        state.document.covers_worldwide_assets.covers_worldwide = True
+        state.document.children.status = "none"
         state.document.executor.status = "confirmed"
         assert get_next_step(state) == "specific_gifts"
 
@@ -90,9 +96,10 @@ class TestStateMachine:
         state.document.full_name.status = "confirmed"
         state.document.home_address.status = "confirmed"
         state.document.covers_worldwide_assets.status = "confirmed"
-        state.document.children.status = "not_applicable"
+        state.document.covers_worldwide_assets.covers_worldwide = True
+        state.document.children.status = "none"
         state.document.executor.status = "confirmed"
-        state.document.specific_gifts.status = "not_applicable"
+        state.document.specific_gifts.status = "none"
         assert get_next_step(state) == "additional_wishes"
 
     def test_all_completed(self):
@@ -100,10 +107,12 @@ class TestStateMachine:
         state.document.full_name.status = "confirmed"
         state.document.home_address.status = "confirmed"
         state.document.covers_worldwide_assets.status = "confirmed"
-        state.document.children.status = "not_applicable"
+        state.document.covers_worldwide_assets.covers_worldwide = True
+        state.document.children.status = "none"
         state.document.executor.status = "not_decided"
-        state.document.specific_gifts.status = "not_applicable"
-        state.document.additional_wishes.status = "not_applicable"
+        state.document.specific_gifts.status = "none"
+        state.document.additional_wishes.status = "none"
+        state.generation_confirmed = True
         assert get_next_step(state) == "complete"
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -116,6 +125,7 @@ class TestStateManager:
         state.document.full_name.status = "confirmed"
         state.document.home_address.status = "confirmed"
         state.document.covers_worldwide_assets.status = "confirmed"
+        state.document.covers_worldwide_assets.covers_worldwide = True
         state.document.children.status = "confirmed"
         state.document.children.has_children = True
         state.document.children.expected_count = 2
@@ -271,7 +281,7 @@ def test_e2e_simulated():
     state, _ = update_state(state, patch)
     
     # 4. yes (for assets)
-    patch = LLMExtractionResponse(updates=ExtractionUpdates(covers_worldwide_assets="yes"), interpretation=ExtractionInterpretation())
+    patch = LLMExtractionResponse(updates=ExtractionUpdates(covers_worldwide_assets=True), interpretation=ExtractionInterpretation())
     state, _ = update_state(state, patch)
     
     # 5. yes (for has_children)
@@ -332,6 +342,7 @@ def test_regression_both_them_executor():
     state.document.full_name.status = "confirmed"
     state.document.home_address.status = "confirmed"
     state.document.covers_worldwide_assets.status = "confirmed"
+    state.document.covers_worldwide_assets.covers_worldwide = True
     
     assert get_next_step(state) != "children_names"
     assert get_next_step(state) == "specific_gifts"

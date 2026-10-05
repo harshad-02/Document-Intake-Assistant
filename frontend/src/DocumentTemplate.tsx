@@ -20,14 +20,14 @@ export function DocumentTemplate({ state }: DocumentTemplateProps) {
   const fullName = getVal('full_name') as string;
   const homeAddress = getVal('home_address') as string;
   
-  const coversWorldwide = getVal('covers_worldwide_assets') as boolean | string;
-  const isWorldwide = coversWorldwide === true || coversWorldwide === 'worldwide';
-  const isSpecific = coversWorldwide !== '' && !isWorldwide && coversWorldwide !== null && coversWorldwide !== undefined;
-  const specificAssetsText = (isSpecific && typeof coversWorldwide === 'string' && coversWorldwide !== 'specific') ? coversWorldwide : '';
+  const coversWorldwide = getVal('covers_worldwide_assets') as any;
+  const isWorldwide = coversWorldwide?.worldwide === true;
+  const isSpecific = coversWorldwide?.specific === true;
+  const specificAssetsText = isSpecific && coversWorldwide?.region ? coversWorldwide.region : '';
 
-  const hasChildren = getVal('has_children') as boolean | string;
-  const isYesChildren = hasChildren === true;
-  const isNoChildren = hasChildren === false;
+  const hasChildrenObj = state?.has_children;
+  const isYesChildren = hasChildrenObj?.status === 'confirmed' && hasChildrenObj?.value === true;
+  const isNoChildren = hasChildrenObj?.value === false && (hasChildrenObj?.status === 'none' || hasChildrenObj?.status === 'confirmed');
 
   let childrenList = getVal('children', []) as string[];
   if (!Array.isArray(childrenList)) childrenList = [];
@@ -38,8 +38,8 @@ export function DocumentTemplate({ state }: DocumentTemplateProps) {
   let specificGifts = getVal('specific_gifts', []) as string[];
   if (!Array.isArray(specificGifts)) specificGifts = [];
 
-  let additionalWishes = getVal('additional_wishes', []) as string[];
-  if (!Array.isArray(additionalWishes)) additionalWishes = [];
+  const additionalWishes = getVal('additional_wishes', '') as string;
+  const isAdditionalWishesNone = state?.additional_wishes?.status === 'none';
 
   return (
     <div className="pdf-template-wrapper">
@@ -183,8 +183,10 @@ export function DocumentTemplate({ state }: DocumentTemplateProps) {
             Please share any additional wishes, instructions, or messages you would like to include:
           </div>
           <div className="pdf-wishes-box">
-            {additionalWishes.length > 0 ? (
-              <div className="pdf-wishes-text">{additionalWishes.join(', ')}</div>
+            {additionalWishes ? (
+              <div className="pdf-wishes-text">{additionalWishes}</div>
+            ) : isAdditionalWishesNone ? (
+              <div className="pdf-wishes-text">None</div>
             ) : (
               <>
                 <div className="pdf-line"></div>
