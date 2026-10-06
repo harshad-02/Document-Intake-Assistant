@@ -12,15 +12,36 @@ An AI-powered web application that interactively guides users to create a Person
 - **Deterministic State Machine:** Ensures the AI asks the right questions in the right order without hallucinating flows.
 
 ## 🛠️ Tech Stack
-- **Frontend:** React 19 (TypeScript), Vite, `html2pdf.js`, Vanilla CSS (Custom Glassmorphism UI)
-- **Backend:** Python 3.10+, FastAPI, Uvicorn, Pydantic
-- **AI / External APIs:** Google Gemini API (`google-genai` SDK)
-- **Deployment:** Vercel (Frontend SPA), Render (Backend Web Service)
 
-## 📐 Architecture Diagram
+### Frontend
+- **React 19 (TypeScript):** Provides a robust, type-safe foundation for building the interactive user interface.
+- **Vite:** A blazing fast frontend build tool for rapid development and optimized production builds.
+- **`html2pdf.js`:** Used to dynamically convert the live document preview into a downloadable PDF file entirely on the client side.
+- **Vanilla CSS:** A custom Glassmorphism design system built from scratch, ensuring a premium, modern aesthetic without relying on bulky CSS frameworks.
 
-![Architecture Diagram](./architecture.png) 
-*(Note: Upload your architecture diagram image to the repository and update the path above!)*
+### Backend
+- **Python 3.10+:** The core programming language powering the backend logic and AI orchestration.
+- **FastAPI:** A highly performant, modern web framework for building the REST API endpoints.
+- **Uvicorn:** A lightning-fast ASGI server implementation used to serve the FastAPI application.
+- **Pydantic:** Enforces strict data validation and type hinting for the application's conversation state, API payloads, and internal models.
+
+### AI & Deployment
+- **Google Gemini API (`google-genai` SDK):** Powers the conversational intelligence, utilizing `gemini-2.5-flash` for high-speed, accurate text generation and strict JSON data extraction.
+- **Vercel:** Hosts the compiled React Single Page Application (SPA).
+- **Render:** Hosts the FastAPI backend as a persistent, containerized web service.
+
+## 📐 Architecture
+
+![Architecture Diagram](./frontend/src/assets/architecture.png) 
+
+### How It Works (The Core Loop)
+
+1. **User Input:** The user sends a message in the chat or edits a field directly in the right panel. The React frontend's `api.ts` sends this payload to the FastAPI backend.
+2. **Extraction Phase (LLM 1):** The `conversation.py` service sends the raw text along with the current state to the **LLM Extractor**. This AI model is strictly prompted to ignore conversational filler and return a formatted JSON object isolating exact data points (e.g., `{"executor_relationship": "wife"}`).
+3. **State Management Phase:** The `state_manager.py` takes that JSON and safely applies it to the session's memory store. The `state_machine.py` (a deterministic rules engine) then analyzes the updated memory and decides exactly which question needs to be asked next.
+4. **Response Phase (LLM 2):** The `conversation.py` service calls the **LLM Responder**, providing it with the newly determined "Next Step" and context. This second AI model formats a polite, human-sounding reply to seamlessly guide the user forward.
+5. **Document Generation:** The `generator.py` script translates the confirmed data state into a formatted Markdown document.
+6. **Frontend Rendering:** The backend sends the AI's reply and the generated document back to the frontend, which instantly updates the chat window and the Live Preview panel. When the document is complete, `html2pdf.js` packages the preview DOM into a downloadable PDF file.
 
 ## 📂 Folder Structure
 ```text
