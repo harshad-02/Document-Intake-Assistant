@@ -99,3 +99,6 @@ Once the frontend server starts, it will output a local URL in the terminal (usu
 
 * Hold `Ctrl` (or `Cmd` on Mac) and click the link in the terminal, or copy and paste it into your web browser.
 * You can now interact with the AI assistant, fill out your Personal Wishes Document, and export it directly to PDF!
+
+## Architecture Diagram  
+<img width="7739" height="6450" alt="image" src="https://github.com/user-attachments/assets/8d0ccd3d-3953-4051-8773-ed45c2bc5467" />
