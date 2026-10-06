@@ -10,8 +10,10 @@ def update_state(state: ConversationState, patch: LLMExtractionResponse) -> Tupl
     """Applies the LLM patch to the state based on business rules."""
     warnings = []
     
-    # We only update state if interpretation is clear.
-    if patch.interpretation.status == "unclear" or patch.interpretation.needs_clarification:
+    # If the user declined generation at the final step, it's not an unclear response
+    if patch.interpretation.needs_clarification and state.current_step == "generation_confirmation":
+        pass
+    elif patch.interpretation.status == "unclear" or patch.interpretation.needs_clarification:
         return state, ["Response was unclear, state unchanged."]
 
     u = patch.updates
@@ -91,13 +93,14 @@ def update_state(state: ConversationState, patch: LLMExtractionResponse) -> Tupl
         doc.executor.status = "none"
         doc.executor.names = []
         doc.executor.relationship = None
-    elif u.executor_names is not None and is_targeted("executor"):
-        if patch.intent in ("correction", "removal"):
-            doc.executor.names = u.executor_names
-        else:
-            for name in u.executor_names:
-                if name not in doc.executor.names:
-                    doc.executor.names.append(name)
+    elif (u.executor_names is not None or u.executor_relationship is not None) and is_targeted("executor"):
+        if u.executor_names is not None:
+            if patch.intent in ("correction", "removal"):
+                doc.executor.names = u.executor_names
+            else:
+                for name in u.executor_names:
+                    if name not in doc.executor.names:
+                        doc.executor.names.append(name)
         if u.executor_relationship is not None:
             doc.executor.relationship = u.executor_relationship
         else:
@@ -136,9 +139,7 @@ def update_state(state: ConversationState, patch: LLMExtractionResponse) -> Tupl
     if step == "additional_wishes" and u.additional_wishes is None and patch.intent == "answer" and not doc.additional_wishes.text and is_targeted("additional_wishes"):
         doc.additional_wishes.status = "none"
 
-    if patch.intent == "generation_confirmation" or (step == "generation_confirmation" and patch.intent == "answer"):
-        # Assume if they answered the generation_confirmation step, it was a yes (since "no" would trigger something else or we just proceed)
-        # Actually if they said "no", the extractor might output intent="correction" or "addition".
+    if patch.intent == "generation_confirmation":
         state.generation_confirmed = True
 
     return state, warnings

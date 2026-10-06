@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pydantic import BaseModel
 
 from fastapi import APIRouter, HTTPException
 
@@ -23,6 +24,7 @@ from app.models.conversation import Message
 from app.services.conversation import (
     SessionNotFoundError,
     handle_direct_edit,
+    handle_batch_edit,
     handle_message,
     _state_to_snapshot,
 )
@@ -152,6 +154,33 @@ async def edit_field(session_id: str, body: EditFieldRequest):
                 error=ErrorDetail(code="VALIDATION_ERROR", message=str(e))
             ).model_dump(),
         )
+
+from typing import Dict, Any
+
+class BatchEditRequest(BaseModel):
+    updates: Dict[str, Any]
+
+@router.patch("/sessions/{session_id}/state/batch")
+async def batch_edit_fields(session_id: str, body: BatchEditRequest):
+    """Batch edit multiple fields via the UI."""
+    try:
+        result = await handle_batch_edit(session_id, body.updates)
+        return result
+    except SessionNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=ErrorResponse(
+                error=ErrorDetail(code="SESSION_NOT_FOUND", message=f"Session '{session_id}' not found")
+            ).model_dump(),
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=422,
+            detail=ErrorResponse(
+                error=ErrorDetail(code="VALIDATION_ERROR", message=str(e))
+            ).model_dump(),
+        )
+
 
 
 @router.post("/sessions/{session_id}/reset", response_model=SessionResponse)

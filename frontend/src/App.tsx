@@ -3,18 +3,22 @@ import ReactMarkdown from 'react-markdown';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
 import personImg from './assets/person.png';
+import asstentImg from './assets/asstent.png';
 import startImg from './assets/start.png';
 import chatImg from './assets/chat.png';
 import previewImg from './assets/preview.png';
 import fieldsImg from './assets/fields.png';
 import copyImg from './assets/copy.png';
+import editImg from './assets/edit.png';
 import downloadImg from './assets/download.png';
 import { DocumentTemplate } from './DocumentTemplate';
+import { EditPanel } from './EditPanel';
 import {
   createSession,
   getSession,
   sendMessage,
   editField,
+  editBatchField,
   resetSession,
   getHealth,
   ApiClientError,
@@ -81,10 +85,11 @@ function App() {
   const [state, setState] = useState<StateSnapshot | null>(null);
   const [document, setDocument] = useState('');
   const [messages, setMessages] = useState<MessageInfo[]>([]);
-  const [, setMissingFields] = useState<string[]>([]);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const isSendingRef = useRef(false);
   const [notifications, setNotifications] = useState<
     { id: number; type: 'warning' | 'error'; text: string }[]
   >([]);
@@ -210,12 +215,13 @@ function App() {
   // ── Send message ─────────────────────────────────────────────────────────
 
   async function handleSend() {
-    if (!inputText.trim() || !sessionId || isSending) return;
+    if (!inputText.trim() || !sessionId || isSendingRef.current) return;
 
     const msg = inputText.trim();
     setInputText('');
     setMessages((prev) => [...prev, { role: 'user', content: msg }]);
     setIsSending(true);
+    isSendingRef.current = true;
 
     try {
       const result = await sendMessage(sessionId, msg);
@@ -224,24 +230,31 @@ function App() {
       setDocument(result.document);
       setMissingFields(result.missing_fields);
 
+      if (result.missing_fields.length === 0 && missingFields.length > 0) {
+        setTimeout(() => {
+          handleDownloadDoc();
+        }, 1000);
+      }
+
       if (result.warnings?.length > 0) {
         result.warnings.forEach((w) => addNotification('warning', w));
       }
-    } catch (err) {
-      if (err instanceof ApiClientError) {
+    } catch (err: any) {
+      if (err && typeof err === 'object' && 'code' in err) {
         if (err.code === 'SESSION_NOT_FOUND') {
           addNotification('error', 'Session expired. Starting a new one…');
           localStorage.removeItem('session_id');
           initSession();
         } else {
-          addNotification('error', err.message);
+          addNotification('error', err.message || 'Unknown API error');
           // Remove the optimistic user message since the call failed
         }
       } else {
-        addNotification('error', 'Failed to send message.');
+        addNotification('error', err instanceof Error ? err.message : 'Failed to send message.');
       }
     } finally {
       setIsSending(false);
+      isSendingRef.current = false;
     }
   }
 
@@ -299,6 +312,69 @@ function App() {
     }
   }
 
+  async function handleFieldEdit(fieldName: string, value: any) {
+    if (!sessionId) return;
+    try {
+      // If it's a list field, split by commas and trim
+      let processedValue = value;
+      if (LIST_FIELDS.includes(fieldName as FieldName) && typeof value === 'string') {
+        processedValue = value.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      
+      const result = await editField(sessionId, fieldName, processedValue);
+      setState(result.state);
+      setDocument(result.document);
+      setMissingFields(result.missing_fields);
+      if (result.warnings?.length > 0) {
+        result.warnings.forEach((w) => addNotification('warning', w));
+      }
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        addNotification('error', err.message);
+      }
+    }
+  }
+
+  async function handleBatchEdit(updates: Record<string, any>) {
+    if (!sessionId) return;
+    try {
+      // Pre-process list fields
+      const processedUpdates = { ...updates };
+      for (const [key, value] of Object.entries(processedUpdates)) {
+        if (LIST_FIELDS.includes(key as FieldName) && typeof value === 'string') {
+          processedUpdates[key] = value.split(',').map(s => s.trim()).filter(Boolean);
+        }
+      }
+      
+      const result = await editBatchField(sessionId, processedUpdates);
+      setState(result.state);
+      setDocument(result.document);
+      setMissingFields(result.missing_fields);
+      if (result.missing_fields.length === 0 && missingFields.length > 0) {
+        setTimeout(() => {
+          handleDownloadDoc();
+        }, 1000);
+      }
+      if (result.warnings?.length > 0) {
+        result.warnings.forEach((w) => addNotification('warning', w));
+      }
+      
+      // Fetch latest messages since the assistant might have generated a new question based on the edit
+      try {
+        const sessionData = await getSession(sessionId);
+        setMessages(sessionData.messages);
+      } catch (e) {
+        console.error("Failed to refresh messages after edit", e);
+      }
+
+      addNotification('success', 'Document updated successfully!');
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        addNotification('error', err.message);
+      }
+    }
+  }
+
   async function handleBooleanEdit(fieldName: FieldName, value: boolean) {
     if (!sessionId) return;
     try {
@@ -324,11 +400,13 @@ function App() {
     try {
       const data = await resetSession(sessionId);
       applySession(data);
+      setCurrentPath('/chat');
     } catch {
       // If reset fails, create a new session
       try {
         const data = await createSession();
         applySession(data);
+        setCurrentPath('/chat');
       } catch (err) {
         if (err instanceof ApiClientError) {
           addNotification('error', err.message);
@@ -412,7 +490,7 @@ function App() {
   const isChildrenApplicable =
     state && !(state.has_children.status === 'confirmed' && state.has_children.value === false);
 
-  if (currentPath !== '/chat') {
+  if (currentPath !== '/chat' && currentPath !== '/edit') {
     return (
       <div key="landing" className="landing-page fade-in">
         <header className="landing-header">
@@ -445,7 +523,7 @@ function App() {
         </div>
         <div className="header-actions">
           <button className="btn-reset" onClick={handleReset} id="btn-reset" title="Start Over" style={{ padding: '0', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src={startImg} alt="Start Over" style={{ width: '48px', height: '48px', cursor: 'pointer' }} />
+            <img src={startImg} alt="Start Over" style={{ width: '32px', height: '32px', cursor: 'pointer' }} />
           </button>
           <img src={personImg} alt="Profile" className="profile-pic" style={{ marginLeft: '12px' }} />
         </div>
@@ -455,7 +533,8 @@ function App() {
       <div className="app-main-wrapper">
         <main className="app-main">
           {/* Group 1: Chat + Preview */}
-          <div className="layout-group">
+          {currentPath === '/chat' && (
+            <div className="layout-group">
             {/* Chat Panel */}
             <div className="panel chat-group-panel">
               <div className="panel-header">
@@ -467,7 +546,17 @@ function App() {
                 <div className="chat-messages">
                   {messages.map((m, i) => (
                     <div key={i} className={`message message-${m.role}`}>
+                      {m.role === 'assistant' && (
+                        <div className="message-avatar avatar-assistant">
+                          <img src={asstentImg} alt="Assistant" />
+                        </div>
+                      )}
                       <div className="message-bubble">{m.content}</div>
+                      {m.role === 'user' && (
+                        <div className="message-avatar avatar-user">
+                          <img src={personImg} alt="User" />
+                        </div>
+                      )}
                     </div>
                   ))}
                   {isSending && (
@@ -511,8 +600,11 @@ function App() {
                   <img src={previewImg} alt="Preview Icon" className="panel-title-icon-img" /> Live Preview
                 </div>
                 <div className="doc-actions">
-                  <button className="btn-doc-action" onClick={handleCopyDoc} id="btn-copy-doc-1">
-                    <img src={copyImg} alt="Copy Icon" className="btn-action-icon" /> Copy
+                  <button className="btn-doc-action" onClick={() => setCurrentPath('/edit')} id="btn-edit-doc-1">
+                    <img src={editImg} alt="Edit Icon" className="btn-action-icon" /> Edit
+                  </button>
+                  <button className="btn-doc-action" onClick={handleDownloadDoc} id="btn-download-doc-1">
+                    <img src={downloadImg} alt="Download Icon" className="btn-action-icon" style={{ filter: 'brightness(0)' }} /> Download
                   </button>
                 </div>
               </div>
@@ -522,156 +614,16 @@ function App() {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          )}
 
           {/* Group 2: Edit + Preview */}
-          <div className="layout-group">
+          {currentPath === '/edit' && (
+            <>
+            <div className="layout-group">
             {/* State Panel */}
-            <div className="panel">
-              <div className="panel-header">
-                <div className="panel-title">
-                  <img src={fieldsImg} alt="Fields Icon" className="panel-title-icon-img" /> Fields
-                </div>
-              </div>
-
-              {/* Progress */}
-              <div className="progress-bar">
-                <div className="progress-label">
-                  <span>Progress</span>
-                  <span>
-                    {progress.confirmed} of {progress.total} confirmed
-                  </span>
-                </div>
-                <div className="progress-track">
-                  <div
-                    className="progress-fill"
-                    style={{
-                      width: `${(progress.confirmed / progress.total) * 100}%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="panel-body">
-                <div className="state-fields">
-                  {state &&
-                    FIELD_ORDER.map((fn) => {
-                      const field = state[fn];
-                      const isNA = fn === 'children' && !isChildrenApplicable;
-
-                      return (
-                        <div key={fn} className="field-row" id={`field-${fn}`}>
-                          <div className="field-header">
-                            <span className="field-label">{FIELD_LABELS[fn]}</span>
-                            {isNA ? (
-                              <span className="field-badge badge-na">N/A</span>
-                            ) : (
-                              <span className={`field-badge badge-${field.status}`}>
-                                {field.status}
-                              </span>
-                            )}
-                          </div>
-
-                          {isNA ? (
-                            <div className="field-value field-value-empty">Not applicable</div>
-                          ) : (
-                            <>
-                              <div
-                                className={`field-value ${field.status === 'unknown' ? 'field-value-empty' : ''
-                                  }`}
-                              >
-                                {formatFieldValue(field)}
-                              </div>
-
-                              {editingField === fn ? (
-                                BOOLEAN_FIELDS.includes(fn) ? (
-                                  <div className="toggle-wrapper">
-                                    <button
-                                      className={`toggle-btn ${field.value === true ? 'active' : ''}`}
-                                      onClick={() => handleBooleanEdit(fn, true)}
-                                    >
-                                      Yes
-                                    </button>
-                                    <button
-                                      className={`toggle-btn ${field.value === false ? 'active' : ''}`}
-                                      onClick={() => handleBooleanEdit(fn, false)}
-                                    >
-                                      No
-                                    </button>
-                                    <button
-                                      className="btn-cancel-edit"
-                                      onClick={() => setEditingField(null)}
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div className="edit-inline">
-                                    <input
-                                      className="edit-input"
-                                      value={editValue}
-                                      onChange={(e) => setEditValue(e.target.value)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleEditSave(fn);
-                                        if (e.key === 'Escape') setEditingField(null);
-                                      }}
-                                      placeholder={
-                                        LIST_FIELDS.includes(fn)
-                                          ? 'Comma-separated values'
-                                          : 'Enter value'
-                                      }
-                                      autoFocus
-                                    />
-                                    <button
-                                      className="btn-save-edit"
-                                      onClick={() => handleEditSave(fn)}
-                                    >
-                                      Save
-                                    </button>
-                                    <button
-                                      className="btn-cancel-edit"
-                                      onClick={() => setEditingField(null)}
-                                    >
-                                      ✕
-                                    </button>
-                                  </div>
-                                )
-                              ) : (
-                                <div className="field-actions">
-                                  <button
-                                    className="btn-edit"
-                                    onClick={() => {
-                                      setEditingField(fn);
-                                      if (field.value != null) {
-                                        if (Array.isArray(field.value)) {
-                                          setEditValue(field.value.join(', '));
-                                        } else {
-                                          setEditValue(String(field.value));
-                                        }
-                                      } else {
-                                        setEditValue('');
-                                      }
-                                    }}
-                                  >
-                                    ✏️ Edit
-                                  </button>
-                                  {field.status !== 'unknown' && (
-                                    <button
-                                      className="btn-clear"
-                                      onClick={() => handleClearField(fn)}
-                                    >
-                                      Clear
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
+            <div className="panel" style={{ backgroundColor: 'transparent', boxShadow: 'none', border: 'none', overflowY: 'visible', padding: 0 }}>
+              <EditPanel state={state} onSave={handleBatchEdit} />
             </div>
 
             {/* Document Panel 2 (Next to Edit) */}
@@ -681,8 +633,11 @@ function App() {
                   <img src={previewImg} alt="Preview Icon" className="panel-title-icon-img" /> Live Preview
                 </div>
                 <div className="doc-actions">
-                  <button className="btn-doc-action" onClick={handleCopyDoc} id="btn-copy-doc-2">
-                    <img src={copyImg} alt="Copy Icon" className="btn-action-icon" /> Copy
+                  <button className="btn-doc-action" onClick={() => setCurrentPath('/chat')} id="btn-edit-doc-2">
+                    <img src={chatImg} alt="Chat Icon" className="btn-action-icon" style={{ filter: 'brightness(0)' }} /> Back to Chat
+                  </button>
+                  <button className="btn-doc-action" onClick={handleDownloadDoc} id="btn-download-doc-2">
+                    <img src={downloadImg} alt="Download Icon" className="btn-action-icon" style={{ filter: 'brightness(0)' }} /> Download
                   </button>
                 </div>
               </div>
@@ -693,13 +648,15 @@ function App() {
               </div>
             </div>
           </div>
-
+          
           {/* Download Button Centered Below Group 2 */}
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
             <button className="btn-massive-download" onClick={handleDownloadDoc} style={{ width: '50%', maxWidth: '600px' }}>
               <img src={downloadImg} alt="Download Icon" className="btn-massive-download-icon" /> Download PDF Document
             </button>
           </div>
+          </>
+          )}
         </main>
       </div>
 

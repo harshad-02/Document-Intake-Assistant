@@ -65,6 +65,7 @@ class ApiClientError extends Error {
   constructor(code: string, message: string) {
     super(message);
     this.code = code;
+    Object.setPrototypeOf(this, ApiClientError.prototype);
   }
 }
 
@@ -142,6 +143,21 @@ export async function editField(
   return request(`/api/sessions/${sessionId}/state`, {
     method: 'PATCH',
     body: JSON.stringify({ field, value }),
+  });
+}
+
+export async function editBatchField(
+  sessionId: string,
+  updates: Record<string, any>
+): Promise<{
+  state: StateSnapshot;
+  document: string;
+  missing_fields: string[];
+  warnings: string[];
+}> {
+  return request(`/api/sessions/${sessionId}/state/batch`, {
+    method: 'PATCH',
+    body: JSON.stringify({ updates }),
   });
 }
 

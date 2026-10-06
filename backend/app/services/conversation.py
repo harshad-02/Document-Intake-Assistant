@@ -106,7 +106,7 @@ async def handle_message(session_id: str, user_message: str) -> MessageResponse:
         if next_step == "complete":
             reply = "Your final Personal Wishes document has been successfully generated. Thank you!"
         else:
-            reply = await generate_response(session.state, next_step, warnings, _build_recent_messages(session), extracted_dict)
+            reply = await generate_response(session.state, next_step, warnings, _build_recent_messages(session), extracted_dict, user_message)
         
         session.messages.append(Message(role="user", content=user_message))
         session.messages.append(Message(role="assistant", content=reply))
@@ -128,17 +128,126 @@ def handle_direct_edit(session_id: str, field_name: str, value: Any) -> dict:
         raise SessionNotFoundError(f"Session '{session_id}' not found")
         
     doc = session.state.document
-    if field_name == "full_name":
-        doc.full_name.value = value
-        doc.full_name.status = "confirmed" if value else "missing"
-    elif field_name == "home_address":
-        doc.home_address.value = value
-        doc.home_address.status = "confirmed" if value else "missing"
-    # Additional handling skipped for brevity for UI edits.
-    # UI edits are out of scope for the major refactor besides making it not crash.
+    if hasattr(doc, field_name):
+        field_obj = getattr(doc, field_name)
+        field_obj.value = value
+        
+        # If it's a list, treat empty list as missing. Otherwise check if value is present.
+        if isinstance(value, list):
+            field_obj.status = "confirmed" if len(value) > 0 else "missing"
+        elif isinstance(value, bool):
+            field_obj.status = "confirmed" # Booleans are always confirmed if explicitly set
+        else:
+            field_obj.status = "confirmed" if value else "missing"
+            
+        if field_name == "has_children" and value is False:
+            doc.children.value = []
+            doc.children.status = "unknown"
+            
     store.save(session)
     next_step = get_next_step(session.state)
     session.state.current_step = next_step
+    
+    return {
+        "state": _state_to_snapshot(session.state),
+        "document": generate_document(session.state.document),
+        "missing_fields": [next_step] if next_step != "complete" else [],
+        "warnings": []
+    }
+
+async def handle_batch_edit(session_id: str, updates: dict) -> dict:
+    session = store.get(session_id)
+    if not session:
+        raise SessionNotFoundError(f"Session '{session_id}' not found")
+        
+    doc = session.state.document
+    
+    for field_name, value in updates.items():
+        if field_name == "full_name":
+            doc.full_name.value = value
+            doc.full_name.status = "confirmed" if value else "missing"
+            
+        elif field_name == "home_address":
+            doc.home_address.value = value
+            doc.home_address.status = "confirmed" if value else "missing"
+            
+        elif field_name == "covers_worldwide_assets":
+            # value is expected to be a boolean or a dict containing 'worldwide'
+            is_worldwide = value if isinstance(value, bool) else (value.get("worldwide") if isinstance(value, dict) else None)
+            if is_worldwide is not None:
+                doc.covers_worldwide_assets.covers_worldwide = is_worldwide
+                doc.covers_worldwide_assets.status = "confirmed"
+                
+        elif field_name == "has_children":
+            if isinstance(value, bool):
+                doc.children.has_children = value
+                if value is False:
+                    doc.children.names = []
+                doc.children.status = "confirmed" if (value is False or len(doc.children.names) > 0) else "unconfirmed"
+                
+        elif field_name == "children":
+            if isinstance(value, list):
+                doc.children.names = value
+                if len(value) > 0:
+                    doc.children.has_children = True
+                    doc.children.status = "confirmed"
+            elif isinstance(value, str):
+                names = [s.strip() for s in value.split(",")] if value.strip() else []
+                doc.children.names = names
+                if len(names) > 0:
+                    doc.children.has_children = True
+                    doc.children.status = "confirmed"
+                    
+        elif field_name == "executor_name":
+            names = [value] if isinstance(value, str) and value else ([] if not value else value)
+            if isinstance(names, list):
+                doc.executor.names = names
+                if len(names) > 0 and doc.executor.relationship:
+                    doc.executor.status = "confirmed"
+                
+        elif field_name == "executor_relationship":
+            doc.executor.relationship = value
+            if value and len(doc.executor.names) > 0:
+                doc.executor.status = "confirmed"
+                
+        elif field_name == "specific_gifts":
+            # For simplicity, if it's a string, we just store it as a single unstructured item for now, 
+            # or we could try to parse "item -> recipient". Since UI is simple textarea, we'll map to text.
+            from app.models.document import SpecificGift
+            if isinstance(value, str) and value.strip():
+                doc.specific_gifts.items = [SpecificGift(item=value.strip(), recipient="Unknown (See Wishes)")]
+                doc.specific_gifts.status = "confirmed"
+            elif isinstance(value, list) and all(isinstance(v, str) for v in value):
+                doc.specific_gifts.items = [SpecificGift(item=v.strip(), recipient="Unknown") for v in value]
+                doc.specific_gifts.status = "confirmed"
+            elif not value:
+                doc.specific_gifts.items = []
+                doc.specific_gifts.status = "missing"
+                
+        elif field_name == "additional_wishes":
+            doc.additional_wishes.text = value if isinstance(value, str) else None
+            doc.additional_wishes.status = "confirmed" if value else "missing"
+    next_step = get_next_step(session.state)
+    session.state.current_step = next_step
+    
+    # Generate assistant response based on the new state
+    if next_step == "complete":
+        reply = "I see you've updated some fields. Your document is completely filled out and ready!"
+    else:
+        extracted_dict = {"_system_note": "User updated fields manually via UI. Proceed to the next step."}
+        reply = await generate_response(
+            session.state, 
+            next_step, 
+            [], 
+            _build_recent_messages(session), 
+            extracted_dict,
+            "[User manually updated fields in the UI]"
+        )
+        
+    from app.models.conversation import Message
+    session.messages.append(Message(role="assistant", content=reply))
+    
+    store.save(session)
     
     return {
         "state": _state_to_snapshot(session.state),

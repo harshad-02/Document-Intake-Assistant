@@ -30,6 +30,7 @@ RULES:
 10. Identify exactly which fields the user is talking about in `target_fields` (e.g., `["children"]`, `["assets"]`, `["executor"]`, `["specific_gifts"]`, `["full_name"]`). The extracted `updates` must ONLY contain data for fields listed in `target_fields`.
 11. Do NOT blindly map "yes" or "no" to the current step if the user's answer is clearly about something else. For example, if the current step is `has_children` and the user says "No assets", the user is talking about `assets`! You MUST output `"target_fields": ["assets"]`, `asset_items=[]`, and LEAVE `has_children` NULL.
 12. RETURN ONLY VALID JSON. Return only a structured patch. Do not invent information. No prose, no markdown fences.
+13. If the current step is "generation_confirmation", and the user agrees to generate (e.g., "yes", "ready"), set `intent: "generation_confirmation"`. If they decline (e.g., "no", "wait"), set `intent: "answer"` and `interpretation.needs_clarification = true` and leave updates empty.
 
 JSON SCHEMA:
 {
