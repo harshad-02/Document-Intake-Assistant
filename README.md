@@ -48,6 +48,22 @@ An AI-powered web application that interactively guides users to create a Person
 5. **Document Generation:** The `generator.py` script translates the confirmed data state into a formatted Markdown document.
 6. **Frontend Rendering:** The backend sends the AI's reply and the generated document back to the frontend, which instantly updates the chat window and the Live Preview panel. When the document is complete, `html2pdf.js` packages the preview DOM into a downloadable PDF file.
 
+## 🧪 Testing the Backend (Automated Tests)
+
+The backend includes a comprehensive suite of automated tests (`pytest`) that cover normal conversation flows, edge cases, deterministic state machine logic, and regression tests.
+
+To run the automated tests locally:
+1. Ensure your backend virtual environment is activated.
+2. Ensure you have installed the testing dependencies (`pytest`, `httpx`).
+3. Run the following command from inside the `backend` folder:
+
+```bash
+cd backend
+pytest tests/ -v
+```
+
+This will run all endpoint tests (`test_all.py`) and complex multi-turn edge cases (`test_regressions_extended.py`) to verify the stability of the Dual-LLM architecture.
+
 ## 📂 Folder Structure
 ```text
 Document-Intake-Assistant/
