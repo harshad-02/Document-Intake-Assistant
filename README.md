@@ -1,5 +1,10 @@
 # Document Intake Assistant
 
+**Live Demos:**
+- **Frontend (Vercel):** [https://document-intake-assistant-eta.vercel.app/](https://document-intake-assistant-eta.vercel.app/)
+- **Backend (Render):** [https://document-intake-assistant-msr2.onrender.com/api/health](https://document-intake-assistant-msr2.onrender.com/api/health)
+
+
 ## 📖 Project Overview
 An AI-powered web application that interactively guides users to create a Personal Wishes Document using Google's Gemini API. The system utilizes a dual-LLM architecture (an Extractor and a Responder) to hold natural conversations while strictly updating structured JSON data in real-time. 
 
