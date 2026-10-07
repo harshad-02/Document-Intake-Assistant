@@ -21,6 +21,7 @@ import {
   editBatchField,
   resetSession,
   getHealth,
+  validateSession,
   ApiClientError,
   type SessionResponse,
   type StateSnapshot,
@@ -422,7 +423,32 @@ function App() {
     addNotification('warning', 'Document copied to clipboard!');
   }
 
-  function handleDownloadDoc() {
+  async function handleDownloadDoc() {
+    if (!sessionId) return;
+
+    try {
+      const validation = await validateSession(sessionId);
+      if (!validation.is_valid) {
+        const extLabels: Record<string, string> = {
+          ...FIELD_LABELS,
+          expected_children_count: 'Expected Children Count',
+          children_names: 'Children Names',
+          executor: 'Executor',
+          generation_confirmation: 'Final Confirmation',
+          specific_assets: 'Specific Assets',
+          worldwide_assets: 'Worldwide Assets'
+        };
+        const missingLabels = validation.missing_fields
+          .map((f: string) => extLabels[f] || f)
+          .join(', ');
+        addNotification('error', `Cannot download PDF. Missing required information: ${missingLabels}`);
+        return;
+      }
+    } catch (e) {
+      addNotification('error', 'Failed to validate document state.');
+      return;
+    }
+
     const element = window.document.querySelector('.document-content');
     if (!element) return;
 

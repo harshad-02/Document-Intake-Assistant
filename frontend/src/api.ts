@@ -51,6 +51,11 @@ export interface HealthResponse {
   configured: boolean;
 }
 
+export interface ValidationResponse {
+  is_valid: boolean;
+  missing_fields: string[];
+}
+
 export interface ApiError {
   error: {
     code: string;
@@ -165,6 +170,10 @@ export async function resetSession(sessionId: string): Promise<SessionResponse> 
   return request<SessionResponse>(`/api/sessions/${sessionId}/reset`, {
     method: 'POST',
   });
+}
+
+export async function validateSession(sessionId: string): Promise<ValidationResponse> {
+  return request<ValidationResponse>(`/api/sessions/${sessionId}/validate`);
 }
 
 export { ApiClientError };

@@ -50,3 +50,41 @@ def get_next_step(state: ConversationState) -> Optional[str]:
         return "generation_confirmation"
         
     return "complete"
+
+def get_all_missing_fields(state: ConversationState) -> list[str]:
+    """Returns a list of all currently missing fields in the conversation state."""
+    doc = state.document
+    missing = []
+    
+    if doc.full_name.status == "missing":
+        missing.append("full_name")
+    if doc.home_address.status == "missing":
+        missing.append("home_address")
+    ca = doc.covers_worldwide_assets
+    if ca.covers_worldwide is None:
+        missing.append("worldwide_assets")
+    if ca.covers_worldwide is False and not ca.region and not doc.assets.items:
+        missing.append("specific_assets")
+        
+    if doc.children.status == "missing":
+        missing.append("has_children")
+        
+    if doc.children.has_children:
+        if doc.children.expected_count is None:
+            missing.append("expected_children_count")
+        if len(doc.children.names) < (doc.children.expected_count or 0):
+            missing.append("children_names")
+            
+    if doc.executor.status == "missing":
+        missing.append("executor")
+        
+    if doc.executor.names and doc.executor.status == "confirmed" and not doc.executor.relationship:
+        missing.append("executor_relationship")
+        
+    if doc.specific_gifts.status == "missing":
+        missing.append("specific_gifts")
+        
+    if doc.additional_wishes.status == "missing":
+        missing.append("additional_wishes")
+        
+    return missing

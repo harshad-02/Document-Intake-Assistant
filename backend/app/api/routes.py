@@ -21,6 +21,10 @@ from app.models.api import (
     SessionResponse,
 )
 from app.models.conversation import Message
+
+class ValidationResponse(BaseModel):
+    is_valid: bool
+    missing_fields: list[str]
 from app.services.conversation import (
     SessionNotFoundError,
     handle_direct_edit,
@@ -28,7 +32,7 @@ from app.services.conversation import (
     handle_message,
     _state_to_snapshot,
 )
-from app.services.state_machine import get_next_step
+from app.services.state_machine import get_next_step, get_all_missing_fields
 from app.store import store
 
 logger = logging.getLogger(__name__)
@@ -208,4 +212,22 @@ async def reset_session(session_id: str):
         document=generate_document(session.state.document),
         missing_fields=[next_step] if next_step != "complete" else [],
         messages=[MessageInfo(role="assistant", content=OPENING_MESSAGE)],
+    )
+
+@router.get("/sessions/{session_id}/validate", response_model=ValidationResponse)
+async def validate_session(session_id: str):
+    """Validate that the session state is complete before downloading."""
+    session = store.get(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=404,
+            detail=ErrorResponse(
+                error=ErrorDetail(code="SESSION_NOT_FOUND", message=f"Session '{session_id}' not found")
+            ).model_dump(),
+        )
+
+    missing = get_all_missing_fields(session.state)
+    return ValidationResponse(
+        is_valid=len(missing) == 0,
+        missing_fields=missing
     )
