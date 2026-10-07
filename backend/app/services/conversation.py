@@ -164,7 +164,7 @@ async def handle_batch_edit(session_id: str, updates: dict) -> dict:
     
     for field_name, value in updates.items():
         if field_name == "full_name":
-            doc.full_name.value = value
+            doc.full_name.value = value.title() if isinstance(value, str) else value
             doc.full_name.status = "confirmed" if value else "missing"
             
         elif field_name == "home_address":
@@ -187,19 +187,19 @@ async def handle_batch_edit(session_id: str, updates: dict) -> dict:
                 
         elif field_name == "children":
             if isinstance(value, list):
-                doc.children.names = value
+                doc.children.names = [name.title() if isinstance(name, str) else name for name in value]
                 if len(value) > 0:
                     doc.children.has_children = True
                     doc.children.status = "confirmed"
             elif isinstance(value, str):
-                names = [s.strip() for s in value.split(",")] if value.strip() else []
+                names = [s.strip().title() for s in value.split(",")] if value.strip() else []
                 doc.children.names = names
                 if len(names) > 0:
                     doc.children.has_children = True
                     doc.children.status = "confirmed"
                     
         elif field_name == "executor_name":
-            names = [value] if isinstance(value, str) and value else ([] if not value else value)
+            names = [value.title()] if isinstance(value, str) and value else ([] if not value else [n.title() if isinstance(n, str) else n for n in value])
             if isinstance(names, list):
                 doc.executor.names = names
                 if len(names) > 0 and doc.executor.relationship:

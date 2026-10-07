@@ -32,7 +32,7 @@ def update_state(state: ConversationState, patch: LLMExtractionResponse) -> Tupl
 
     # Apply updates defensively
     if u.full_name is not None and is_targeted("full_name"):
-        doc.full_name.value = u.full_name
+        doc.full_name.value = u.full_name.title()
         doc.full_name.status = "confirmed"
 
     if u.home_address is not None and is_targeted("home_address"):
@@ -73,10 +73,11 @@ def update_state(state: ConversationState, patch: LLMExtractionResponse) -> Tupl
         doc.children.status = "confirmed"
 
     if u.children_names is not None and doc.children.has_children and is_targeted("children"):
+        capitalized_names = [name.title() for name in u.children_names]
         if patch.intent in ("correction", "removal"):
-            doc.children.names = u.children_names
+            doc.children.names = capitalized_names
         else:
-            for name in u.children_names:
+            for name in capitalized_names:
                 if name not in doc.children.names:
                     doc.children.names.append(name)
         
@@ -95,10 +96,11 @@ def update_state(state: ConversationState, patch: LLMExtractionResponse) -> Tupl
         doc.executor.relationship = None
     elif (u.executor_names is not None or u.executor_relationship is not None) and is_targeted("executor"):
         if u.executor_names is not None:
+            capitalized_executor_names = [name.title() for name in u.executor_names]
             if patch.intent in ("correction", "removal"):
-                doc.executor.names = u.executor_names
+                doc.executor.names = capitalized_executor_names
             else:
-                for name in u.executor_names:
+                for name in capitalized_executor_names:
                     if name not in doc.executor.names:
                         doc.executor.names.append(name)
         if u.executor_relationship is not None:
@@ -118,7 +120,7 @@ def update_state(state: ConversationState, patch: LLMExtractionResponse) -> Tupl
     # Specific gifts
     if u.specific_gifts is not None and is_targeted("specific_gifts"):
         from app.models.document import SpecificGift
-        new_gifts = [SpecificGift(item=g.item, recipient=g.recipient) for g in u.specific_gifts]
+        new_gifts = [SpecificGift(item=g.item, recipient=g.recipient.title() if g.recipient else g.recipient) for g in u.specific_gifts]
         if patch.intent in ("correction", "removal"):
             doc.specific_gifts.items = new_gifts
         else:
