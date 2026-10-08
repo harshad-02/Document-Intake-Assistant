@@ -1,7 +1,7 @@
 # Document Intake Assistant
 
 **Live Demos:**
-- **Frontend (Vercel):** [https://document-intake-assistant-eta.vercel.app/](https://document-intake-assistant-eta.vercel.app/)
+- **Live Link** [https://document-intake-assistant-eta.vercel.app/](https://document-intake-assistant-eta.vercel.app/)
 
 
 ## 📖 Project Overview
