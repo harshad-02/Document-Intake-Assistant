@@ -2,7 +2,6 @@
 
 **Live Demos:**
 - **Frontend (Vercel):** [https://document-intake-assistant-eta.vercel.app/](https://document-intake-assistant-eta.vercel.app/)
-- **Backend (Render):** [https://document-intake-assistant-msr2.onrender.com/api/health](https://document-intake-assistant-msr2.onrender.com/api/health)
 
 
 ## 📖 Project Overview
