@@ -152,8 +152,10 @@ function App() {
   };
 
   useEffect(() => {
-    initSession();
-  }, []);
+    if (currentPath !== '/' && !sessionId) {
+      initSession();
+    }
+  }, [currentPath, sessionId]);
 
   async function initSession() {
     setIsLoading(true);
