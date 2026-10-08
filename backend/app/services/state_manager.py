@@ -95,6 +95,7 @@ def update_state(state: ConversationState, patch: LLMExtractionResponse) -> Tupl
         doc.executor.names = []
         doc.executor.relationship = None
     elif (u.executor_names is not None or u.executor_relationship is not None) and is_targeted("executor"):
+        doc.executor.status = "confirmed"
         if u.executor_names is not None:
             capitalized_executor_names = [name.title() for name in u.executor_names]
             if patch.intent in ("correction", "removal"):
